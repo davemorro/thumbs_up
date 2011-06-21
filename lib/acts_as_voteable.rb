@@ -6,8 +6,13 @@ module ThumbsUp
     end
 
     module ClassMethods
-      def acts_as_voteable
+      def acts_as_voteable(options = {})
         has_many :votes, :as => :voteable, :dependent => :destroy
+
+        options[:dimensions].each do |dimension|
+          has_many "#{dimension}_votes", :dependent => :destroy, :conditions => {:dimension => dimension.to_s}, :class_name => 'Vote', :as => :voteable
+          has_many "#{dimension}_voters", :through => "#{dimension}_votes", :source => :voter
+        end if options[:dimensions].is_a?(Array)
 
         include ThumbsUp::ActsAsVoteable::InstanceMethods
         extend  ThumbsUp::ActsAsVoteable::SingletonMethods
@@ -121,43 +126,43 @@ module ThumbsUp
 
     module InstanceMethods
 
-      def votes_for
-        Vote.where(:voteable_id => id, :voteable_type => self.class.name, :vote => true).count
+      def votes_for(dimension = nil)
+        Vote.where(:voteable_id => id, :voteable_type => self.class.name, :vote => true).by_dimension(dimension).count
       end
 
-      def votes_against
-        Vote.where(:voteable_id => id, :voteable_type => self.class.name, :vote => false).count
+      def votes_against(dimension = nil)
+        Vote.where(:voteable_id => id, :voteable_type => self.class.name, :vote => false).by_dimension(dimension).count
       end
 
-      def percent_for
-        (votes_for.to_f * 100 / (self.votes.size + 0.0001)).round
+      def percent_for(dimension = nil)
+        (votes_for(dimension).to_f * 100 / (self.votes.by_dimension(dimension).size + 0.0001)).round
       end
 
-      def percent_against
-        (votes_against.to_f * 100 / (self.votes.size + 0.0001)).round
+      def percent_against(dimension = nil)
+        (votes_against(dimension).to_f * 100 / (self.votes.by_dimension(dimension).size + 0.0001)).round
       end
 
       # You'll probably want to use this method to display how 'good' a particular voteable
       # is, and/or sort based on it.
-      def plusminus
-        votes_for - votes_against
+      def plusminus(dimension = nil)
+        votes_for(dimension) - votes_against(dimension)
       end
 
-      def votes_count
-        self.votes.size
+      def votes_count(dimension = nil)
+        self.votes.by_dimension(dimension).size
       end
 
-      def voters_who_voted
-        self.votes.map(&:voter).uniq
+      def voters_who_voted(dimension = nil)
+        self.votes.by_dimension(dimension).map(&:voter).uniq
       end
 
-      def voted_by?(voter)
+      def voted_by?(voter, dimension = nil)
         0 < Vote.where(
               :voteable_id => self.id,
               :voteable_type => self.class.name,
               :voter_type => voter.class.name,
               :voter_id => voter.id
-            ).count
+            ).by_dimension(dimension).count
       end
 
     end

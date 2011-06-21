@@ -31,8 +31,8 @@ module ThumbsUp #:nodoc:
       #       user.vote_count(:down) # All -1 votes
       #       user.vote_count()      # All votes
 
-      def vote_count(for_or_against = :all)
-        v = Vote.where(:voter_id => id).where(:voter_type => self.class.name)
+      def vote_count(for_or_against = :all, dimension = nil)
+        v = Vote.where(:voter_id => id).where(:voter_type => self.class.name).by_dimension(dimension)
         v = case for_or_against
           when :all   then v
           when :up    then v.where(:vote => true)
@@ -41,58 +41,58 @@ module ThumbsUp #:nodoc:
         v.count
       end
 
-      def voted_for?(voteable)
-        voted_which_way?(voteable, :up)
+      def voted_for?(voteable, dimension = nil)
+        voted_which_way?(voteable, :up, dimension)
       end
 
-      def voted_against?(voteable)
-        voted_which_way?(voteable, :down)
+      def voted_against?(voteable, dimension = nil)
+        voted_which_way?(voteable, :down, dimension)
       end
 
-      def voted_on?(voteable)
+      def voted_on?(voteable, dimension = nil)
         0 < Vote.where(
               :voter_id => self.id,
               :voter_type => self.class.name,
               :voteable_id => voteable.id,
               :voteable_type => voteable.class.name
-            ).count
+            ).by_dimension(dimension).count
       end
 
-      def vote_for(voteable)
-        self.vote(voteable, { :direction => :up, :exclusive => false })
+      def vote_for(voteable, dimension = nil)
+        self.vote(voteable, { :direction => :up, :exclusive => false, :dimension => dimension })
       end
 
-      def vote_against(voteable)
-        self.vote(voteable, { :direction => :down, :exclusive => false })
+      def vote_against(voteable, dimension = nil)
+        self.vote(voteable, { :direction => :down, :exclusive => false, :dimension => dimension })
       end
 
-      def vote_exclusively_for(voteable)
-        self.vote(voteable, { :direction => :up, :exclusive => true })
+      def vote_exclusively_for(voteable, dimension = nil)
+        self.vote(voteable, { :direction => :up, :exclusive => true, :dimension => dimension })
       end
 
-      def vote_exclusively_against(voteable)
-        self.vote(voteable, { :direction => :down, :exclusive => true })
+      def vote_exclusively_against(voteable, dimension = nil)
+        self.vote(voteable, { :direction => :down, :exclusive => true, :dimension => dimension })
       end
 
       def vote(voteable, options = {})
         raise ArgumentError, "you must specify :up or :down in order to vote" unless options[:direction] && [:up, :down].include?(options[:direction].to_sym)
         if options[:exclusive]
-          self.clear_votes(voteable)
+          self.clear_votes(voteable, options[:dimension])
         end
         direction = (options[:direction].to_sym == :up)
-        Vote.create!(:vote => direction, :voteable => voteable, :voter => self)
+        Vote.create!(:vote => direction, :voteable => voteable, :voter => self, :dimension => options[:dimension])
       end
 
-      def clear_votes(voteable)
+      def clear_votes(voteable, dimension = nil)
         Vote.where(
           :voter_id => self.id,
           :voter_type => self.class.name,
           :voteable_id => voteable.id,
           :voteable_type => voteable.class.name
-        ).map(&:destroy)
+        ).by_dimension(dimension).map(&:destroy)
       end
 
-      def voted_which_way?(voteable, direction)
+      def voted_which_way?(voteable, direction, dimension = nil)
         raise ArgumentError, "expected :up or :down" unless [:up, :down].include?(direction)
         0 < Vote.where(
               :voter_id => self.id,
@@ -100,7 +100,7 @@ module ThumbsUp #:nodoc:
               :vote => direction == :up ? true : false,
               :voteable_id => voteable.id,
               :voteable_type => voteable.class.name
-            ).count
+            ).by_dimension(dimension).count
       end
 
     end
