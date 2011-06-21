@@ -1,6 +1,8 @@
 ThumbsUp
 =======
 
+Experimenting with enabling voting across multiple dimensions
+
 A ridiculously straightforward and simple package 'o' code to enable voting in your application, a la stackoverflow.com, etc.
 Allows an arbitrary number of entities (users, etc.) to vote on models.
 
